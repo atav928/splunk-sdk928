@@ -1,0 +1,69 @@
+[build-system]
+build-backend= "setuptools.build_meta"
+requires = [
+    "setuptools",
+    "wheel",
+    "attrs",
+    "certifi"
+]
+
+[project]
+name = "splunksdk"
+authors = [
+    {name = "Adam Taveras", email = "dev@tavnets.com"}
+]
+requires-python = ">=3.9,<4"
+license = {file = "LICENSE"}
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: Implementation",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10"
+]
+dynamic = ["version", "readme", "dependencies", "entry-points", "description"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = "requirements.txt"}
+readme = {file = ["README.md","CHANGELOG.md"], content-type = "text/markdown"}
+version = {attr = "splunksdk.__version__"}
+description = {file = "DESCRIPTION"}
+
+[project.optional-dependencies]
+test = [
+    "pytest-cov",
+    "pytest",
+    "pytest-mock",
+    "unittest",
+    "dataclasses",
+    "black",
+    "pylint",
+    "isort"
+]
+
+[tool.setuptools.packages.find]
+where = ["src", "tests"]
+include = ["splunksdk*"]
+namespaces = true
+
+[tool.coverage.run]
+source = ["src"]
+
+[tool.pylint.message_control]
+max-line-length = 119
+disable = ["import-error"]
+ignore-paths = [
+  "tests/*",
+]
+
+[tool.pylint.DESIGN]
+max-attributes=12
+max-args=6
+
+[tool.isort]
+profile = "black"
+
+[tool.black]
+line-length = 119
+
+#[project.scripts]
+#splunk-cli = "snc_splunk_tools.spl_cli:main"

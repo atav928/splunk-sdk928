@@ -1,0 +1,3 @@
+splunklib>=1.0.0
+pytoolkit928==0.0.8
+splunk-sdk>=1.7.4

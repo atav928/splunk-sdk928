@@ -64,6 +64,3 @@ profile = "black"
 
 [tool.black]
 line-length = 119
-
-#[project.scripts]
-#splunk-cli = "snc_splunk_tools.spl_cli:main"

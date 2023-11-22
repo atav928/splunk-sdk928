@@ -16,4 +16,4 @@ jobs:
         env:
           REPORT_ONLY: true
           SHOW_ERRORS: true
-        run: bash scrips/pylint_script.sh
+        run: bash scripts/pylint_script.sh

@@ -1,25 +1,10 @@
----
-on: [push, pull_request]
-
+name: Pylint
+on: [push]
 jobs:
-  build:
-    name: Pylint
+  Pylint:
     runs-on: ubuntu-latest
     steps:
-      - 
-        name: Set up Python 3.10
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-      -
-        name: Display python version
-        run: python -c "import sys; print(sys.version)"
-      - 
-        name: Run Pylint
-        env:
-          REPORT_ONLY: true
-          SHOW_ERRORS: true
-        working-directory: /scripts
-        run: |
-          pwd
-          /usr/bin/bash ./pylint_script.sh
+      - uses: actions/checkout@v1
+      - uses: actions/setup-python@v1
+      - run: pip install pylint  # -r requirements.txt
+      - run: pylint **/*.py

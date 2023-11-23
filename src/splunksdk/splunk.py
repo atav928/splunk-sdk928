@@ -1,4 +1,4 @@
-#  pylint: disable=invalid-name
+#  pylint: disable=invalid-name,wildcard-import,unused-wildcard-import
 """Splunk Options."""
 
 from typing import Any, Union

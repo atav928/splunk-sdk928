@@ -19,7 +19,7 @@ try:
 except ImportError:
     pass
 
-__all__ = [
+__all__: list[str] = [
     "IllegalOperationException",
     "IncomparableException",
     "AmbiguousReferenceException",
@@ -27,8 +27,9 @@ __all__ = [
     "NoSuchCapability",
     "OperationError",
     "NotSupportedError",
-    "_splunk_connection",  
+    "_splunk_connection",
 ]
+
 
 def _splunk_connection(**kwargs: Any):
     """
@@ -38,18 +39,20 @@ def _splunk_connection(**kwargs: Any):
     :rtype: _type_
     """
     import splunklib.client as sp_client  # pylint: disable=import-outside-toplevel
-    APP_LIST = ["appname", "splunkapp", "app"]
-    app = ""
+
+    APP_LIST: list[str] = ["appname", "splunkapp", "app"]
+    app: str = "search"
+    sharing: str = kwargs.get("sharing", "system")
     for _ in APP_LIST:
         if kwargs.get(_):
             app = kwargs[_]
             break
     return sp_client.connect(
-            host=kwargs.get("splunk_host",kwargs["host"]),
-            username=kwargs["username"],
-            port=kwargs.get("mgmtport", kwargs["port"]),
-            password=kwargs["password"],
-            app=app,
-            owner=kwargs["owner"],
-            sharing=kwargs["sharing"]
+        host=kwargs.get("splunk_host", kwargs["host"]),
+        username=kwargs["username"],
+        port=kwargs.get("mgmtport", kwargs["port"]),
+        password=kwargs["password"],
+        app=app,
+        owner=kwargs.get("owner", kwargs["username"]),
+        sharing=sharing,
     )

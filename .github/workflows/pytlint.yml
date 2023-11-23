@@ -11,9 +11,12 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+      -
+        name: Display python version
+        run: python -c "import sys; print(sys.version)"
       - 
         name: Run Pylint
         env:
           REPORT_ONLY: true
           SHOW_ERRORS: true
-        run: bash scripts/pylint_script.sh
+        run: bash ${GITHUB_WORKSPACE}/scripts/pylint_script.sh

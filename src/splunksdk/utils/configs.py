@@ -1,5 +1,6 @@
 """Configurations."""
 
+
 class Config:
     LOGNAME: str = "splunk.log"
     LOGSTREAM: bool = False

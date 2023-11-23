@@ -8,15 +8,16 @@ requires = [
 ]
 
 [project]
-name = "splunksdk"
+name = "splunk-sdk928"
 authors = [
     {name = "Adam Taveras", email = "dev@tavnets.com"}
 ]
-requires-python = ">=3.9,<4"
+requires-python = ">=3.8,<4"
 license = {file = "LICENSE"}
 classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: Implementation",
+    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10"
 ]
@@ -24,7 +25,7 @@ dynamic = ["version", "readme", "dependencies", "entry-points", "description"]
 
 [tool.setuptools.dynamic]
 dependencies = {file = "requirements.txt"}
-readme = {file = ["README.md","CHANGELOG.md"], content-type = "text/markdown"}
+readme = {file = ["README.md", "CHANGELOG.md", "SECURITY.md"], content-type = "text/markdown"}
 version = {attr = "splunksdk.__version__"}
 description = {file = "DESCRIPTION"}
 

@@ -5,6 +5,9 @@ jobs:
   build:
     name: Pylint
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./scripts
     steps:
       - 
         name: Set up Python 3.10
@@ -22,4 +25,4 @@ jobs:
           SHOW_ERRORS: true
         run: |
           pwd
-          bash ./scripts/pylint_script.sh
+          ./pylint_script.sh

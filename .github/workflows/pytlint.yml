@@ -16,9 +16,10 @@ jobs:
         run: python -c "import sys; print(sys.version)"
       - 
         name: Run Pylint
+        working-directory: ${{ github.workspace }}/PROJECT_FOLDER
         env:
           REPORT_ONLY: true
           SHOW_ERRORS: true
         run: |
           pwd
-          bash scripts/pylint_script.sh
+          bash ./scripts/pylint_script.sh

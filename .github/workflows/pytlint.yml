@@ -16,7 +16,7 @@ jobs:
         run: python -c "import sys; print(sys.version)"
       - 
         name: Run Pylint
-        working-directory: ${{ github.workspace }}/PROJECT_FOLDER
+        working-directory: ${{ github.workspace }}
         env:
           REPORT_ONLY: true
           SHOW_ERRORS: true

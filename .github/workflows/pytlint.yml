@@ -22,4 +22,4 @@ jobs:
         working-directory: scripts
         run: |
           pwd
-          ./pylint_script.sh
+          usr/bin/bash ./pylint_script.sh

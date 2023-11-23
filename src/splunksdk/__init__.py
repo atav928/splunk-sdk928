@@ -47,7 +47,7 @@ def _splunk_connection(**kwargs: Any):
         if kwargs.get(_):
             app = kwargs[_]
             break
-    return sp_client.connect(
+    return sp_client.connect(  # type: ignore
         host=kwargs.get("splunk_host", kwargs["host"]),
         username=kwargs["username"],
         port=kwargs.get("mgmtport", kwargs["port"]),

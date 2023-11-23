@@ -97,7 +97,7 @@ class KVstore:
         # TODO: Build out a recursive yeild that llows for a inline search using exra **params
         # search_results = [data if {} for data in flat]
 
-    def add(self, data):
+    def add(self, data) -> None:
         self.store.data.insert(data=data)
 
     def delete(

@@ -19,7 +19,7 @@ jobs:
         env:
           REPORT_ONLY: true
           SHOW_ERRORS: true
-        working-directory: scripts
+        working-directory: /scripts
         run: |
           pwd
           /usr/bin/bash ./pylint_script.sh

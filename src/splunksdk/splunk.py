@@ -1,4 +1,4 @@
-#  pylint: disable=invalid-name,wildcard-import,unused-wildcard-import,protected-access,undefined-variable
+#  pylint: disable=invalid-name,wildcard-import,unused-wildcard-import,protected-access,undefined-variable,too-few-public-methods
 """Splunk Options."""
 
 from typing import Any, Union

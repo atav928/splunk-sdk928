@@ -14,8 +14,8 @@ from splunksdk import *
 class SplunkApi:
     """Splunk API."""
 
-    subclasses: list[str] = []
     _conn: Service
+    subclasses: list[str] = []
 
     def __init__(self, **kwargs: Any) -> None:
         """

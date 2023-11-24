@@ -1,14 +1,22 @@
 #  pylint: disable=invalid-name,wildcard-import,unused-wildcard-import,protected-access,undefined-variable,too-few-public-methods,unsubscriptable-object
 """Splunk Options."""
 
+import tempfile
 from typing import Any, Union, Dict
+from pandas import DataFrame
+
+
+from splunklib import results as sp_results
 
 from splunklib.data import Record
-from splunklib.client import KVStoreCollection, Service, KVStoreCollections
+from splunklib.client import KVStoreCollection, Service, KVStoreCollections, Jobs, Job
 
 from pytoolkit.utilities import flatten_dict
+from pytoolkit.utils import reformat_exception
 
 from splunksdk import *
+from splunksdk.utils.statics import SPLUNK_OUTPUTMODES
+from splunksdk.utils import Utils
 
 
 class SplunkApi:
@@ -50,6 +58,7 @@ class SplunkApi:
 
         class KVstoreWrapper(KVstore):
             """KVStoreWrapper"""
+
             def __init__(self) -> None:
                 self._parent_class: SplunkApi = _parent_class
 
@@ -57,6 +66,7 @@ class SplunkApi:
 
         class SearchWrapper(Search):
             """SearchWrapper"""
+
             def __init__(self) -> None:
                 self._parent_class: SplunkApi = _parent_class
 
@@ -71,7 +81,6 @@ class KVstore:
     """
 
     _parent_class = None
-    _collections: list[str]
     _stores: KVStoreCollections
     store: KVStoreCollection
     raw_data: Union[list[Dict[str, Any]], None] = None
@@ -86,11 +95,11 @@ class KVstore:
 
     def set_kvstore(self, collection_name: str) -> None:
         """Sets KVStore Collection."""
-        self._check_collection(collection_name)
+        self._collection_exists(collection_name)
         self.store: KVStoreCollection = self.stores[collection_name]
 
     def _set_coll(self) -> None:
-        self._collections = [_.name for _ in self.stores]  # type: ignore
+        self.collections = [_.name for _ in self.stores]  # type: ignore
 
     def get_item(self, key: str) -> Dict[str, Any]:
         """Get Item by ID or _key."""
@@ -107,11 +116,15 @@ class KVstore:
         # Use standard ops to get filtered resutls
         # Example: s.KVstore.kvstore.data.query(**{"$and":[{"env": {"$eq": "prod"},"isActive":{"$eq": True}}]})
         self.raw_data = self.store.data.query(**kwargs)
-        #flat: list[Dict[str, Any]] = [
+        # flat: list[Dict[str, Any]] = [
         #    flatten_dict(_dict) for _dict in self.raw_data]
         # TODO: Build out a recursive yeild that llows for a inline search using exra **params
         # search_results = [data if {} for data in flat]
 
+    def to_csv(self):
+        if self.raw_data:
+            flat = [flatten_dict(_dict) for _dict in self.raw_data]
+            #df = Utils.to_csv(self.)
     def create_collection(self, name: str, **kwargs: Dict[str, Any]) -> None:
         """
         Creates a KV Store Collection.
@@ -144,7 +157,8 @@ class KVstore:
         """
         if not self.store:
             raise NoSuchCapability("KVStoreCollection not defined")
-        coll_insert: Dict[str, Any] = self.store.data.insert(data=data)  # type: ignore
+        coll_insert: Dict[str, Any] = self.store.data.insert(
+            data=data)  # type: ignore
         if not coll_insert.get("_key"):
             raise OperationError(f"Unable to insert data {data}")
 
@@ -161,14 +175,19 @@ class KVstore:
         """
         Delete Collection.
         """
-        self._check_collection(collection_name)
+        self._collection_not_exists(collection_name)
         self.set_kvstore(collection_name=collection_name)
         self.store.delete()
 
-    def _check_collection(self, name: str) -> None:
+    def _collection_exists(self, name: str) -> None:
         self._set_coll()
-        if name in self._collections:
+        if name in self.collections:
             raise InvalidNameException(f"Collection already exists {name}")
+        
+    def _collection_not_exists(self, name: str) -> None:
+        self._set_coll()
+        if name not in self.collections:
+            raise InvalidNameException(f"Collection does not exists {name}")
 
     @property
     def collections(self) -> None:
@@ -178,7 +197,7 @@ class KVstore:
     @property
     def stores(self) -> KVStoreCollections:
         """KVStoreCollections."""
-        self._stores: KVStoreCollections = self._parent_class._conn.kvstore
+        self._stores: KVStoreCollections = self._parent_class._conn.kvstore  # type: ignore
         return self._stores  # type: ignore
 
 
@@ -186,6 +205,15 @@ class Search:
     """Splunk Search."""
 
     _parent_class = None
+    _output_mode: str = "json"
+    json_results: dict[str, Any]
+    csv_results: DataFrame
+    json_cols_results: dict[str, Any]
+    json_rows_results: dict[str, Any]
+    xml_results: list[Any]
+    job: Job
+    raw_results: Any
+    search_query: Union[str, None] = None
 
     def __repr__(self) -> str:
         """Class Representation."""
@@ -194,3 +222,73 @@ class Search:
     def __str__(self) -> str:
         """String Representation of Class."""
         return str(self.__class__).split(".", maxsplit=-1)[-1]
+
+    @property
+    def jobs(self) -> Jobs:
+        self._jobs = self._parent_class._conn.jobs  # type: ignore
+        return self._jobs  # type: ignore
+
+    @property
+    def output_mode(self) -> str:
+        return self._output_mode
+
+    @output_mode.setter
+    def output_mode(self, value: str) -> None:
+        if value.lower() not in SPLUNK_OUTPUTMODES:
+            raise InvalidNameException(f"Invalid output mode {value}")
+        self._output_mode = value.lower()
+
+    def add_query(self, search_query: str, **kwargs: Union[str, dict[str, Any]]) -> None:
+        self.search_query = search_query
+
+    def start_search(self, **kwargs: Any):
+        # create a job
+        try:
+            if not self.search_query:
+                self.add_query(search_query=kwargs.pop("query") if kwargs.get("query") else kwargs.get("search_query"))
+        except:
+            raise OperationError("Unable to run search without a search query")
+        self.job: Job= self.jobs.create(query=self.search_query, **kwargs)
+
+    def get_results(self, **kwargs: Any) -> bool:
+        """
+        Generates reults once completed into file format that is permitted.
+
+        :raises InvalidNameException: _description_
+        :return: _description_
+        :rtype: Any
+        """
+        try:
+            if self.job.is_done():
+                if kwargs.get("output_mode"):
+                    self._output_mode = kwargs.pop("output_mode")
+                self.csv_results = Utils.to_csv(service=self.job.results(output_mode='csv'))
+                self.raw_results = self.job.results
+                self.json_results = Utils.splunk_exporter(service=self.job.results(output_mode="json"))
+                self.json_cols_results = Utils.to_json(service=self.job.results(output_mode="json_cols"),output_mode="json_cols")
+                self.json_rows_results = Utils.to_json(service=self.job.results(output_mode="json_rows"),output_mode="json_rows")
+                self.xml_results = Utils.to_xml(service=self.job.results(output_mode="xml"),output_mode="xml")
+                return self.job.is_done()
+            return False
+        except Exception as err:
+            error: str = reformat_exception(err)
+            raise InvalidNameException(error)
+    
+    def print_results(self, location: str, output_mode: str = "json") -> str:
+        """
+        Print out file based on location specified.
+
+        :param location: _description_
+        :type location: str
+        :param output_mode: _description_, defaults to "json"
+        :type output_mode: str, optional
+        """
+        extension: str = output_mode.split('_')[0]
+        filename: str = f"{location}/results_sid_{self.job.sid}.{extension}"
+        with open(filename,'wb') as f:
+            f.writelines(self.job.results(output_mode=output_mode))
+        return filename
+
+    def cancel_job(self) -> None:
+        """Cancel current job."""
+        self.job.cancel()

@@ -1,12 +1,26 @@
 """Utilities."""
 
+import json
+import tempfile
 from typing import Any
 import uuid
 
 import pandas as pd
 from pandas import DataFrame
+from splunklib.results import JSONResultsReader
 
 from pytoolkit.utilities import flatten_dict, nested_dict
+from pytoolkit.py_cert.cacert import castore_custom_delete
+
+# TODO: replace with other functions in pytoolkit
+def get_tempdir() -> str:
+    """Returns tempdir"""
+    return tempfile.gettempdir()
+
+def splunk_temp(extension: str) -> str:
+    """Temp splunk file for search."""
+    return f"{get_tempdir()}/splunk_{Utils.uuid()}.{extension}"
+
 
 class Utils:
     """Utilities for Internal Usage."""
@@ -37,3 +51,44 @@ class Utils:
 
     def _set_data(self, data: DataFrame) -> None:
         self.dataframe = data
+
+    @classmethod
+    def to_csv(cls, **kwargs) -> DataFrame:
+        try:
+            return pd.read_csv(kwargs["service"])
+        except Exception:
+            pass
+        return pd.DataFrame.from_dict(kwargs["data"])
+    
+    @classmethod
+    def to_xml(cls, **kwargs):
+        filename = splunk_temp(extension="xml")
+        with open(filename, 'wb') as f:
+            f.writelines(kwargs["service"])
+        with open(filename,'rb') as f:
+            values = f.readlines()
+        castore_custom_delete(filename)
+        return values
+    
+    @classmethod
+    def to_json(cls, **kwargs):
+        filename = splunk_temp(extension='json')
+        with open(filename,'wb') as f:
+            f.writelines(kwargs["service"])
+        with open(filename,'rb') as f:
+            values = json.load(f)
+        castore_custom_delete(filename)
+        return values
+    
+    @staticmethod
+    def splunk_exporter(**kwargs: Any) -> list[dict[str, Any]]:
+        """
+        Export Splunk Records and reformat into a dictionary.
+
+        :return: _description_
+        :rtype: list[dict[str, Any]]
+        """
+        results = JSONResultsReader(kwargs["service"])
+        # TODO: Convert to a dataclass object that can also hold the metadata or use python pipe
+        # https://towardsdatascience.com/write-clean-python-code-using-pipes-1239a0f3abf5
+        return [_ if isinstance(_, dict) else {str(_.type): str(_.message)} for _ in results]

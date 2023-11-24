@@ -53,12 +53,11 @@ class Utils:
         self.dataframe = data
 
     @classmethod
-    def to_csv(cls, **kwargs) -> DataFrame:
+    def to_csv(cls, **kwargs: Any) -> DataFrame:
         try:
             return pd.read_csv(kwargs["service"])
-        except Exception:
-            pass
-        return pd.DataFrame.from_dict(kwargs["data"])
+        except KeyError:
+            return pd.DataFrame.from_records(kwargs["data"],index='_key')
     
     @classmethod
     def to_xml(cls, **kwargs):

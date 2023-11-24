@@ -2,7 +2,7 @@
 """Splunk Options."""
 
 import tempfile
-from typing import Any, Union, Dict
+from typing import Any, Union, Dict, List
 from pandas import DataFrame
 
 
@@ -11,11 +11,12 @@ from splunklib import results as sp_results
 from splunklib.data import Record
 from splunklib.client import KVStoreCollection, Service, KVStoreCollections, Jobs, Job
 
-from pytoolkit.utilities import flatten_dict
+from pytoolkit.utilities import flatten_dict, nested_dict
 from pytoolkit.utils import reformat_exception
 
 from splunksdk import *
 from splunksdk.utils.statics import SPLUNK_OUTPUTMODES
+from splunksdk.utils.kvstore import Collections
 from splunksdk.utils import Utils
 
 
@@ -82,9 +83,13 @@ class KVstore:
 
     _parent_class = None
     _stores: KVStoreCollections
+    _collections: List[str]
     store: KVStoreCollection
     raw_data: Union[list[Dict[str, Any]], None] = None
+    flat_data: Union[list[Dict[str, Any]], None] = None
+    nested_data: Union[list[Dict[str, Any]], None] = None
 
+    #TODO: Figure out hwo to handle colllections as a property or as something else as getting attribute errors
     def __repr__(self) -> str:
         """Class Representation."""
         return f"{self._parent_class.__str__()}.{self.__str__()}"
@@ -95,12 +100,17 @@ class KVstore:
 
     def set_kvstore(self, collection_name: str) -> None:
         """Sets KVStore Collection."""
-        self._collection_exists(collection_name)
+        self._collection_not_exists(collection_name)
         self.store: KVStoreCollection = self.stores[collection_name]
 
-    def _set_coll(self) -> None:
-        self.collections = [_.name for _ in self.stores]  # type: ignore
+    #def _set_coll(self) -> None:
+    #    self.collections = [_.name for _ in self.stores]  # type: ignore
 
+    @property
+    def collections(self) -> List[str]:
+        setattr(self,"_collections",[_.name for _ in self.stores])# type: ignore
+        return self._collections
+    
     def get_item(self, key: str) -> Dict[str, Any]:
         """Get Item by ID or _key."""
         return self.store.data.query_by_id(id=key)
@@ -116,15 +126,27 @@ class KVstore:
         # Use standard ops to get filtered resutls
         # Example: s.KVstore.kvstore.data.query(**{"$and":[{"env": {"$eq": "prod"},"isActive":{"$eq": True}}]})
         self.raw_data = self.store.data.query(**kwargs)
-        # flat: list[Dict[str, Any]] = [
-        #    flatten_dict(_dict) for _dict in self.raw_data]
+        self.flat_data = [flatten_dict(_dict) for _dict in self.raw_data]
+        self.nested_data = [nested_dict(_dict) for _dict in self.raw_data]
         # TODO: Build out a recursive yeild that llows for a inline search using exra **params
         # search_results = [data if {} for data in flat]
 
-    def to_csv(self):
-        if self.raw_data:
-            flat = [flatten_dict(_dict) for _dict in self.raw_data]
-            #df = Utils.to_csv(self.)
+    def to_csv(self) -> Union[DataFrame,None]:
+        """
+        Returns a Dataframe formated into a CSV format.
+
+        :return: _description_
+        :rtype: Union[DataFrame,None]
+        """
+        if self.flat_data:
+            return Utils.to_csv(data=self.flat_data)
+
+    def _add_collection(self, name: str) -> None:
+        self._collections.append(name)
+    
+    def _del_collection(self, name: str) -> None:
+        self._collections.remove(name)
+
     def create_collection(self, name: str, **kwargs: Dict[str, Any]) -> None:
         """
         Creates a KV Store Collection.
@@ -140,10 +162,12 @@ class KVstore:
 
         :return: Result of POST request
         """
+        self._collection_exists(name=name)
         coll_return: Record = self.stores.create(name=name, **kwargs)  # type: ignore
         if coll_return.get("status") != 201:
             raise OperationError(f"Unable to create collection {name}")
         self.set_kvstore(collection_name=name)
+        self._add_collection(name=name)
 
     def insert_data(self, data: Union[str, Dict[str, Any]]) -> None:
         """
@@ -178,21 +202,17 @@ class KVstore:
         self._collection_not_exists(collection_name)
         self.set_kvstore(collection_name=collection_name)
         self.store.delete()
+        self._del_collection(name=collection_name)
 
     def _collection_exists(self, name: str) -> None:
-        self._set_coll()
+        #self._set_coll()
         if name in self.collections:
             raise InvalidNameException(f"Collection already exists {name}")
         
     def _collection_not_exists(self, name: str) -> None:
-        self._set_coll()
+        #self._set_coll()
         if name not in self.collections:
             raise InvalidNameException(f"Collection does not exists {name}")
-
-    @property
-    def collections(self) -> None:
-        """Return all avail KVStoreCollections."""
-        self._set_coll()
 
     @property
     def stores(self) -> KVStoreCollections:

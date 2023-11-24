@@ -4,6 +4,8 @@ from typing import Any
 from splunksdk.utils.configs import Config
 from splunksdk._version import __version__
 
+APP_LIST: list[str] = ["appname", "splunkapp", "app"]
+
 config = Config()
 
 try:
@@ -39,8 +41,6 @@ def _splunk_connection(**kwargs: Any):
     :rtype: _type_
     """
     import splunklib.client as sp_client  # pylint: disable=import-outside-toplevel
-
-    APP_LIST: list[str] = ["appname", "splunkapp", "app"]
     app: str = "search"
     sharing: str = kwargs.get("sharing", "system")
     for _ in APP_LIST:

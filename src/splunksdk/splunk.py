@@ -1,4 +1,4 @@
-#  pylint: disable=invalid-name,wildcard-import,unused-wildcard-import
+#  pylint: disable=invalid-name,wildcard-import,unused-wildcard-import,protected-access,undefined-variable
 """Splunk Options."""
 
 from typing import Any, Union
@@ -36,20 +36,27 @@ class SplunkApi:
         """
         return self._conn
 
+    def __repr__(self) -> str:
+        """Class Representation."""
+        return self.__str__()
+
     def __str__(self) -> str:
-        return str(self.__class__).split(".")[-1]
+        """String Representation of Class."""
+        return str(self.__class__).split(".", maxsplit=-1)[-1]
 
     def _subclass_container(self) -> dict[str, Any]:
         _parent_class: SplunkApi = self
         return_object: dict[str, Any] = {}
 
         class KVstoreWrapper(KVstore):
+            """KVStoreWrapper"""
             def __init__(self) -> None:
                 self._parent_class: SplunkApi = _parent_class
 
         return_object["KVstore"] = KVstoreWrapper
 
         class SearchWrapper(Search):
+            """SearchWrapper"""
             def __init__(self) -> None:
                 self._parent_class: SplunkApi = _parent_class
 
@@ -70,10 +77,12 @@ class KVstore:
     raw_data: Union[list[dict[str, Any]], None] = None
 
     def __repr__(self) -> str:
+        """Class Representation."""
         return f"{self._parent_class.__str__()}.{self.__str__()}"
 
     def __str__(self) -> str:
-        return str(self.__class__).split(".")[-1]
+        """String Representation of Class."""
+        return str(self.__class__).split(".", maxsplit=-1)[-1]
 
     def set_kvstore(self, collection_name: str) -> None:
         """Sets KVStore Collection."""
@@ -98,8 +107,8 @@ class KVstore:
         # Use standard ops to get filtered resutls
         # Example: s.KVstore.kvstore.data.query(**{"$and":[{"env": {"$eq": "prod"},"isActive":{"$eq": True}}]})
         self.raw_data = self.store.data.query(**kwargs)
-        flat: list[dict[str, Any]] = [
-            flatten_dict(_dict) for _dict in self.raw_data]
+        #flat: list[dict[str, Any]] = [
+        #    flatten_dict(_dict) for _dict in self.raw_data]
         # TODO: Build out a recursive yeild that llows for a inline search using exra **params
         # search_results = [data if {} for data in flat]
 
@@ -118,7 +127,7 @@ class KVstore:
 
         :return: Result of POST request
         """
-        coll_return: Record = self.stores.create(name=name, **kwargs)
+        coll_return: Record = self.stores.create(name=name, **kwargs)  # type: ignore
         if coll_return.get("status") != 201:
             raise OperationError(f"Unable to create collection {name}")
         self.set_kvstore(collection_name=name)
@@ -135,7 +144,7 @@ class KVstore:
         """
         if not self.store:
             raise NoSuchCapability("KVStoreCollection not defined")
-        coll_insert: dict[str, Any] = self.store.data.insert(data=data)
+        coll_insert: dict[str, Any] = self.store.data.insert(data=data)  # type: ignore
         if not coll_insert.get("_key"):
             raise OperationError(f"Unable to insert data {data}")
 
@@ -170,7 +179,7 @@ class KVstore:
     def stores(self) -> KVStoreCollections:
         """KVStoreCollections."""
         self._stores: KVStoreCollections = self._parent_class._conn.kvstore
-        return self._stores
+        return self._stores  # type: ignore
 
 
 class Search:
@@ -179,7 +188,9 @@ class Search:
     _parent_class = None
 
     def __repr__(self) -> str:
+        """Class Representation."""
         return f"{self._parent_class.__str__()}.{self.__str__()}"
 
     def __str__(self) -> str:
-        return str(self.__class__).split(".")[-1]
+        """String Representation of Class."""
+        return str(self.__class__).split(".", maxsplit=-1)[-1]

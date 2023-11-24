@@ -1,7 +1,9 @@
+# pylint: disable=too-few-public-methods
 """Configurations."""
 
 
 class Config:
+    """Splunk Configurations."""
     LOGNAME: str = "splunk.log"
     LOGSTREAM: bool = False
     LOGDIR: str = ""

@@ -1,7 +1,7 @@
-#  pylint: disable=invalid-name,wildcard-import,unused-wildcard-import,protected-access,undefined-variable,too-few-public-methods
+#  pylint: disable=invalid-name,wildcard-import,unused-wildcard-import,protected-access,undefined-variable,too-few-public-methods,unsubscriptable-object
 """Splunk Options."""
 
-from typing import Any, Union
+from typing import Any, Union, Dict
 
 from splunklib.data import Record
 from splunklib.client import KVStoreCollection, Service, KVStoreCollections
@@ -22,7 +22,7 @@ class SplunkApi:
         Initialize Splunk API.
         """
         self._conn = _splunk_connection(**kwargs)
-        subclasses: dict[str, Any] = self._subclass_container()
+        subclasses: Dict[str, Any] = self._subclass_container()
         self.subclasses = list(subclasses)
         self.KVstore: Any = subclasses["KVstore"]()
         self.Search: Any = subclasses["Search"]()
@@ -44,9 +44,9 @@ class SplunkApi:
         """String Representation of Class."""
         return str(self.__class__).split(".", maxsplit=-1)[-1]
 
-    def _subclass_container(self) -> dict[str, Any]:
+    def _subclass_container(self) -> Dict[str, Any]:
         _parent_class: SplunkApi = self
-        return_object: dict[str, Any] = {}
+        return_object: Dict[str, Any] = {}
 
         class KVstoreWrapper(KVstore):
             """KVStoreWrapper"""
@@ -74,7 +74,7 @@ class KVstore:
     _collections: list[str]
     _stores: KVStoreCollections
     store: KVStoreCollection
-    raw_data: Union[list[dict[str, Any]], None] = None
+    raw_data: Union[list[Dict[str, Any]], None] = None
 
     def __repr__(self) -> str:
         """Class Representation."""
@@ -92,11 +92,11 @@ class KVstore:
     def _set_coll(self) -> None:
         self._collections = [_.name for _ in self.stores]  # type: ignore
 
-    def get_item(self, key: str) -> dict[str, Any]:
+    def get_item(self, key: str) -> Dict[str, Any]:
         """Get Item by ID or _key."""
         return self.store.data.query_by_id(id=key)
 
-    def get_collection_data(self, **kwargs: dict[str, Any]) -> None:
+    def get_collection_data(self, **kwargs: Dict[str, Any]) -> None:
         """
         Get collection data.
 
@@ -107,12 +107,12 @@ class KVstore:
         # Use standard ops to get filtered resutls
         # Example: s.KVstore.kvstore.data.query(**{"$and":[{"env": {"$eq": "prod"},"isActive":{"$eq": True}}]})
         self.raw_data = self.store.data.query(**kwargs)
-        #flat: list[dict[str, Any]] = [
+        #flat: list[Dict[str, Any]] = [
         #    flatten_dict(_dict) for _dict in self.raw_data]
         # TODO: Build out a recursive yeild that llows for a inline search using exra **params
         # search_results = [data if {} for data in flat]
 
-    def create_collection(self, name: str, **kwargs: dict[str, Any]) -> None:
+    def create_collection(self, name: str, **kwargs: Dict[str, Any]) -> None:
         """
         Creates a KV Store Collection.
 
@@ -132,7 +132,7 @@ class KVstore:
             raise OperationError(f"Unable to create collection {name}")
         self.set_kvstore(collection_name=name)
 
-    def insert_data(self, data: Union[str, dict[str, Any]]) -> None:
+    def insert_data(self, data: Union[str, Dict[str, Any]]) -> None:
         """
         Inserts item into this collection. An _id field will be generated if not assigned in the data.
 
@@ -144,14 +144,14 @@ class KVstore:
         """
         if not self.store:
             raise NoSuchCapability("KVStoreCollection not defined")
-        coll_insert: dict[str, Any] = self.store.data.insert(data=data)  # type: ignore
+        coll_insert: Dict[str, Any] = self.store.data.insert(data=data)  # type: ignore
         if not coll_insert.get("_key"):
             raise OperationError(f"Unable to insert data {data}")
 
     def delete_data(self) -> None:
         """Delete entry"""
 
-    def update_data(self, key: str, data: Union[dict[str, Any], str]) -> None:
+    def update_data(self, key: str, data: Union[Dict[str, Any], str]) -> None:
         """update entry"""
         if not self.store and self.store.data.query_by_id(key):
             raise OperationError(f"Missing Collection or invalid _key {key}")

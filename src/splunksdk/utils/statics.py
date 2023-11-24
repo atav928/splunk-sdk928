@@ -1,4 +1,6 @@
 """Static Properties."""
 
+from typing import List
+
 ENCODING = "utf-8"
-KVSTORE_QUERY: list[str] = ["sort", "limit", "skip", "fields"]
+KVSTORE_QUERY: List[str] = ["sort", "limit", "skip", "fields"]

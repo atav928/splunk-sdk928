@@ -1,15 +1,42 @@
 # pylint: disable=invalid-name,too-many-instance-attributes
 """Splunk Login Dataclass Structure."""
 
-from typing import Union, Optional
+from typing import Any, Union, Optional
 
 from ssl import SSLContext
 from dataclasses import dataclass
+
+import splunklib.client as sp_client 
+from splunklib.client import Service
 
 from pytoolkit.utilities import BaseMonitor, NONETYPE
 from pytoolkit.utils import set_bool
 
 SHARING: list[str] = ["global", "system", "app", "user"]
+
+def _splunk_connection(**kwargs: Any) -> Service:
+    """
+    This function connects and logs in to a Splunk instance.
+
+    This function is a shorthand for :meth:`Service.login`.
+    The ``connect`` function makes one round trip to the server (for logging in).
+
+    See ``SplunkLogin`` Dataclass for details.
+
+    **Example**::
+
+        import splunklib.client as client
+        s = client.connect(...)
+        a = s.apps["my_app"]
+        ...
+    """
+    if "host" not in kwargs:
+        kwargs["host"] = kwargs.get(
+            "splunk_host", kwargs.get("hostname", "localhost"))
+    return sp_client.connect(  # type: ignore
+        **SplunkLogin.create_from_kwargs(**kwargs).to_dict()
+    )
+
 
 @dataclass
 class SplunkLogin(BaseMonitor):
@@ -78,5 +105,5 @@ class SplunkLogin(BaseMonitor):
 
     def __post_init__(self):
         if self.sharing not in SHARING:
-                raise ValueError(f"Invalid param sharing {self.sharing}")
+            raise ValueError(f"Invalid param sharing {self.sharing}")
         self.verify: Union[str, bool]= set_bool(value=self.verify) # type: ignore

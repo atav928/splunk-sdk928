@@ -19,6 +19,14 @@ try:
         OperationError,
         NotSupportedError,
     )
+    # Aditional Exceptions
+
+    class SplunkApiNoOperationRunning(OperationError):
+        """SplunkAPI Customized Operation Error Exception."""
+    class SplunkSearchError(OperationError):
+        """SplunkAPI Customized Search Results Returned Error Message."""
+    class SplunkSearchFatal(OperationError):
+        """SplunkAPI Fatal Error in Search."""
 except ImportError:
     pass
 
@@ -31,6 +39,9 @@ __all__: list[str] = [
     "OperationError",
     "NotSupportedError",
     "_splunk_connection",
+    "SplunkApiNoOperationRunning",
+    "SplunkSearchError",
+    "SplunkSearchFatal",
 ]
 
 
@@ -52,7 +63,8 @@ def _splunk_connection(**kwargs: Any):
     """
     import splunklib.client as sp_client  # pylint: disable=import-outside-toplevel
     if "host" not in kwargs:
-        kwargs["host"] = kwargs.get("splunk_host",kwargs.get("hostname","localhost"))
+        kwargs["host"] = kwargs.get(
+            "splunk_host", kwargs.get("hostname", "localhost"))
     return sp_client.connect(  # type: ignore
         **SplunkLogin.create_from_kwargs(**kwargs).to_dict()
     )

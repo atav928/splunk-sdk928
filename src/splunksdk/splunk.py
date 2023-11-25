@@ -1,12 +1,10 @@
-#  pylint: disable=invalid-name,wildcard-import,unused-wildcard-import,protected-access,undefined-variable,too-few-public-methods,unsubscriptable-object
+#  pylint: disable=invalid-name,wildcard-import,unused-wildcard-import,protected-access,undefined-variable,too-few-public-methods,unsubscriptable-object,raise-missing-from
 """Splunk Options."""
 
-import tempfile
-from typing import Any, Union, Dict, List
+from typing import Any, Union, Dict, List, Container
 from pandas import DataFrame
 
 
-from splunklib import results as sp_results
 
 from splunklib.data import Record
 from splunklib.client import KVStoreCollection, Service, KVStoreCollections, Jobs, Job
@@ -15,8 +13,8 @@ from pytoolkit.utilities import flatten_dict, nested_dict
 from pytoolkit.utils import reformat_exception
 
 from splunksdk import *
+from splunksdk.utils.search import SearchJobResults, SplunkSearchResults
 from splunksdk.utils.statics import SPLUNK_OUTPUTMODES
-from splunksdk.utils.kvstore import Collections
 from splunksdk.utils import Utils
 
 
@@ -103,14 +101,12 @@ class KVstore:
         self._collection_not_exists(collection_name)
         self.store: KVStoreCollection = self.stores[collection_name]
 
-    #def _set_coll(self) -> None:
-    #    self.collections = [_.name for _ in self.stores]  # type: ignore
-
     @property
     def collections(self) -> List[str]:
+        """KVStore Collections."""
         setattr(self,"_collections",[_.name for _ in self.stores])# type: ignore
         return self._collections
-    
+
     def get_item(self, key: str) -> Dict[str, Any]:
         """Get Item by ID or _key."""
         return self.store.data.query_by_id(id=key)
@@ -140,10 +136,11 @@ class KVstore:
         """
         if self.flat_data:
             return Utils.to_csv(data=self.flat_data)
+        return None
 
     def _add_collection(self, name: str) -> None:
         self._collections.append(name)
-    
+
     def _del_collection(self, name: str) -> None:
         self._collections.remove(name)
 
@@ -205,12 +202,18 @@ class KVstore:
         self._del_collection(name=collection_name)
 
     def _collection_exists(self, name: str) -> None:
-        #self._set_coll()
+        """
+        Check if collection exists.
+
+        :param name: _description_
+        :type name: str
+        :raises InvalidNameException: _description_
+        """
         if name in self.collections:
             raise InvalidNameException(f"Collection already exists {name}")
-        
+  
     def _collection_not_exists(self, name: str) -> None:
-        #self._set_coll()
+        """Check if KVStore Collection Does not exist."""
         if name not in self.collections:
             raise InvalidNameException(f"Collection does not exists {name}")
 
@@ -226,14 +229,16 @@ class Search:
 
     _parent_class = None
     _output_mode: str = "json"
-    json_results: dict[str, Any]
-    csv_results: DataFrame
-    json_cols_results: dict[str, Any]
-    json_rows_results: dict[str, Any]
-    xml_results: list[Any]
+    _orig_results: Job
+    search_resp: Union[SplunkSearchResults, None] = None
+    csv_results: Union[DataFrame, None] = None
+    job_content: Union[dict[str, Any], None] = None
+    json_cols_results: Union[dict[str, Any], None] = None
+    json_rows_results: Union[dict[str, Any], None] = None
+    xml_results: Union[list[Any], None] = None
     job: Job
-    raw_results: Any
-    search_query: Union[str, None] = None
+    raw_results: Container[SearchJobResults] = []
+    search_query: Union[str, None] = None # type: ignore
 
     def __repr__(self) -> str:
         """Class Representation."""
@@ -245,11 +250,13 @@ class Search:
 
     @property
     def jobs(self) -> Jobs:
+        """Splunk Jobs."""
         self._jobs = self._parent_class._conn.jobs  # type: ignore
         return self._jobs  # type: ignore
 
     @property
     def output_mode(self) -> str:
+        """Default Output Mode."""
         return self._output_mode
 
     @output_mode.setter
@@ -258,17 +265,42 @@ class Search:
             raise InvalidNameException(f"Invalid output mode {value}")
         self._output_mode = value.lower()
 
-    def add_query(self, search_query: str, **kwargs: Union[str, dict[str, Any]]) -> None:
+    def __append_raw_job(self, job: Job):
+        """Build container of Jobs."""
+        self.raw_results.append(SearchJobResults(self.job))
+        self._org_results = job.results  # type: ignore
+
+    def add_query(self, search_query: str, **kwargs: Union[str, dict[str, Any]]) -> str:
+        """Add New Query."""
         self.search_query = search_query
+        if kwargs.get("start_search", False):
+            self.start_search()
+            return self.job.name
+        return search_query
 
     def start_search(self, **kwargs: Any):
+        """
+        Start Splunk Search Job.
+
+        :raises OperationError: _description_
+        """
         # create a job
+        search_query = ""
         try:
-            if not self.search_query:
-                self.add_query(search_query=kwargs.pop("query") if kwargs.get("query") else kwargs.get("search_query"))
-        except:
+            search_query = kwargs.pop("query")
+        except KeyError:
+            pass
+        if not self.search_query:
+            self.search_query = kwargs.get("search_query") if kwargs.get("search_query") else search_query
+        if not self.search_query:
             raise OperationError("Unable to run search without a search query")
-        self.job: Job= self.jobs.create(query=self.search_query, **kwargs)
+        self.add_query(search_query=self.search_query)
+        self.job: Job= self.jobs.create(query=self.search_query, **kwargs)  # type: ignore
+        # Update Job Content to keep loaded
+        self.job_content = self.job.content  # type: ignore
+        # TODO: Once kicked off run a detached job possibly a container here
+        # to check on job and continue to update job_conent to be ready
+        self.__append_raw_job(self.job)
 
     def get_results(self, **kwargs: Any) -> bool:
         """
@@ -278,22 +310,52 @@ class Search:
         :return: _description_
         :rtype: Any
         """
-        try:
-            if self.job.is_done():
-                if kwargs.get("output_mode"):
-                    self._output_mode = kwargs.pop("output_mode")
-                self.csv_results = Utils.to_csv(service=self.job.results(output_mode='csv'))
-                self.raw_results = self.job.results
-                self.json_results = Utils.splunk_exporter(service=self.job.results(output_mode="json"))
-                self.json_cols_results = Utils.to_json(service=self.job.results(output_mode="json_cols"),output_mode="json_cols")
-                self.json_rows_results = Utils.to_json(service=self.job.results(output_mode="json_rows"),output_mode="json_rows")
-                self.xml_results = Utils.to_xml(service=self.job.results(output_mode="xml"),output_mode="xml")
-                return self.job.is_done()
-            return False
-        except Exception as err:
-            error: str = reformat_exception(err)
-            raise InvalidNameException(error)
-    
+        if not self.job_content:
+            raise SplunkApiNoOperationRunning(f"No Job Content Exists {self.job_content}")
+        # Check job Status
+        if self.job.is_done():
+            if kwargs.get("output_mode"):
+                self._output_mode = kwargs.pop("output_mode")
+            self.job_content = self.job.content  # type: ignore
+            # Need to check the results first. This should report a Message
+            self.search_resp = Utils.splunk_exporter(service=self.job.results(output_mode="json"))  # type: ignore
+            # Move this to the creation
+            #self.__append_raw_job(self.job)
+            # Check for Error in Search return Error
+            self._check_search_for_error(results=self.search_resp.message)  # type: ignore
+            try:
+                self.csv_results = Utils.to_csv(
+                    service=self.job.results(output_mode='csv')  # type: ignore
+                )
+                self.json_cols_results = Utils.to_json(
+                    service=self.job.results(output_mode="json_cols"),output_mode="json_cols"   # type: ignore
+                )
+                self.json_rows_results = Utils.to_json(
+                    service=self.job.results(output_mode="json_rows"),output_mode="json_rows"   # type: ignore
+                )
+                self.xml_results = Utils.to_xml(
+                    service=self.job.results(output_mode="xml"),output_mode="xml"  # type: ignore
+                )
+                return self.job.is_done()  # type: ignore
+            except Exception as err:
+                error: str = reformat_exception(err)
+                raise InvalidNameException(error)
+        return False
+
+    def _check_search_for_error(self, results: dict[str, Any]):
+        """
+        Check For Error in Response.
+
+        :param results: _description_
+        :type results: dict[str, Any]
+        :raises SplunkSearchError: _description_
+        :raises SplunkSearchFatal: _description_
+        """
+        if "ERROR" in results:
+            raise SplunkSearchError(f'ERROR: {results["ERROR"]}')
+        if "FATAL" in results:
+            raise SplunkSearchFatal(f'FATAL: {results["FATAL"]}')
+
     def print_results(self, location: str, output_mode: str = "json") -> str:
         """
         Print out file based on location specified.
@@ -306,9 +368,20 @@ class Search:
         extension: str = output_mode.split('_')[0]
         filename: str = f"{location}/results_sid_{self.job.sid}.{extension}"
         with open(filename,'wb') as f:
-            f.writelines(self.job.results(output_mode=output_mode))
+            f.writelines(self.job.results(output_mode=output_mode))  # type: ignore
         return filename
 
-    def cancel_job(self) -> None:
-        """Cancel current job."""
+    def delete_job(self) -> None:
+        """Delete Current Job and it's Cache."""
         self.job.cancel()
+        self.cancel_job()
+
+    def cancel_job(self) -> None:
+        """Removes job fron current content"""
+        self.job_content = None
+        self.search_resp = None
+        self.csv_results = None
+        self.json_cols_results = None
+        self.json_rows_results = None
+        self.xml_results: Union[list[Any], None] = None
+        self.search_query = None

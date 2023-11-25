@@ -2,3 +2,4 @@ splunklib>=1.0.0
 pytoolkit928==0.0.8
 splunk-sdk>=1.7.4
 numpy>=1.22.2 # not directly required, pinned by Snyk to avoid a vulnerability
+pandas

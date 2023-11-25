@@ -13,9 +13,10 @@ from pytoolkit.utilities import flatten_dict, nested_dict
 from pytoolkit.utils import reformat_exception
 
 from splunksdk import *
+from splunksdk.utils.login import _splunk_connection
 from splunksdk.utils.search import SearchJobResults, SplunkSearchResults
 from splunksdk.utils.statics import SPLUNK_OUTPUTMODES
-from splunksdk.utils import Utils
+from splunksdk.utils.splunk_utils import Utils
 
 
 class SplunkApi:

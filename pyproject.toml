@@ -41,6 +41,9 @@ test = [
     "isort"
 ]
 
+[tool.pytest.ini_options]
+addopts = "-v --cov --cov-report html --cov-report term-missing --cov-fail-under 50"
+
 [tool.setuptools.packages.find]
 where = ["src", "tests"]
 include = ["splunksdk*"]

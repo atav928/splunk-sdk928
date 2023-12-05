@@ -20,7 +20,7 @@ jobs:
           pytest
       - name: Install Python Package Dependencies
         run: |
-          python3 -m pip -U pip build wheel
+          python3 -m pip install -U pip build wheel
           python3 -m pip install -r requirements.txt
       - name: Build Python Package
         run: python3 -m build
@@ -30,6 +30,6 @@ jobs:
           verbose: true
           print-hash: true
           user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
+          password: ${{ secrets.PYPITEST_API_TOKEN }}
           repository-url: https://test.pypi.org/legacy/
         # run: twine upload --repository pypi dist/* --verbose

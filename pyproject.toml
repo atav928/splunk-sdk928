@@ -34,7 +34,7 @@ test = [
     "pytest-cov",
     "pytest",
     "pytest-mock",
-    "unittest",
+    "unittest2",
     "dataclasses",
     "black",
     "pylint",

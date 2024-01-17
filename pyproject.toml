@@ -34,12 +34,15 @@ test = [
     "pytest-cov",
     "pytest",
     "pytest-mock",
-    "unittest",
+    "unittest2",
     "dataclasses",
     "black",
     "pylint",
     "isort"
 ]
+
+[tool.pytest.ini_options]
+addopts = "-v --cov --cov-report html --cov-report term-missing --cov-fail-under 50"
 
 [tool.setuptools.packages.find]
 where = ["src", "tests"]

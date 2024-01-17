@@ -212,7 +212,7 @@ class KVstore:
         """
         if name in self.collections:
             raise InvalidNameException(f"Collection already exists {name}")
-  
+
     def _collection_not_exists(self, name: str) -> None:
         """Check if KVStore Collection Does not exist."""
         if name not in self.collections:
